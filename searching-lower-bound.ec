@@ -186,7 +186,7 @@ lemma all_listsS_iff (xs ys : int list, n : int) :
   0 <= n =>
   ys \in all_lists xs (n + 1) <=>
   exists (z : int, zs : int list),
-  ys = z :: zs /\ z \in xs /\ zs \in all_lists xs n /\ z <= (nth witness zs 1).
+  ys = z :: zs /\ z \in xs /\ zs \in all_lists xs n.
 proof.
 move => ge0_n.
 rewrite all_listsS // next /= -flatten_mapP.
@@ -201,7 +201,7 @@ qed.
 lemma all_lists_arity_wanted (xs : int list, n : int) :
   0 <= n =>
   all
-  (fun ys => size ys = n /\ all (mem  xs) (sort e ys))
+  (fun ys => size ys = n /\ all (mem xs) ys)
   (all_lists xs n).
 proof.
 elim n => [| i ge0_i IH].
@@ -216,7 +216,7 @@ by rewrite addzC.
 qed.
 
 lemma all_lists_arity_have (xs ys : int list, n : int) :
-  0 <= n => size ys = n => (all (mem (sort e xs)) ys) =>
+  0 <= n => size ys = n => (all (mem xs) ys) =>
   ys \in all_lists xs n.
 proof.
 move : n.
@@ -237,7 +237,7 @@ by elim ge0_n => ->.
 qed.
 
 lemma all_lists_nseq (x : int, xs : int list, n : int) :
-  0 <= n => x \in  (sort e xs) => nseq n x \in all_lists xs n.
+  0 <= n => x \in xs => nseq n x \in all_lists xs n.
 proof.
 move => ge0_n x_in_xs.
 rewrite all_lists_arity_have //.
@@ -272,7 +272,7 @@ by case (f i).
 qed.
 
 lemma all_lists_make_have (xs : int list, x1 x2 : int, f : int -> bool, n : int) :
-  0 <= n => x1 \in (sort e xs) => x2 \in (sort e xs) =>
+  0 <= n => x1 \in  xs => x2 \in xs =>
   (all_lists_make x1 x2 f n) \in all_lists xs n.
 proof.
 move => ge0_n x1_in_xs x2_in_xs.
@@ -331,15 +331,15 @@ op k_in_list_true (inps : inp list, k : inp) : bool =
   
 (* when argument to f is good, we get Some of an answer - IN PROGRESS*)
 
-axiom good (xs : inp list, k : inp) : (* additional constraint is that all lists need to be sorted and the element that is being searched for should be in the list *)
+axiom good (xs : inp list, k : inp) : (* additional constraint is that all lists need to be sorted and the element that is being searched for must be in the list *)
   (size xs = arity /\ sorted xs /\ k_in_list_true xs k) => all (mem univ) xs =>
-  exists (y : out), f xs = Some y.
+  exists (y : out), f k xs = Some y.
 
 (* when argument to f is bad, we get None - IN PROGRESS *)
 
 axiom bad (xs : inp list, k : inp) : (* Check if the !all clause is needed for the axiom bad*)
   size xs <> arity \/ not_sorted xs \/ !(k_in_list_true xs k) \/ !(all (mem univ) xs) =>
-  f xs = None.
+  f k xs = None.
 
 (* end of theory parameters *)
 
@@ -355,18 +355,13 @@ op inpss_invar (inpss : inp list list, k : inp) : bool =
   all is_some (map (f k) inpss).
 
 
-lemma inpss_invar_init (k : inp) : (* fails at smt. Invalid allists theory. Check if axiom good is good? *)
+lemma inpss_invar_init (k : inp) :
   inpss_invar init_inpss k.
 proof.
 rewrite /inpss_invar /init_inpss.
 have H := AllLists.all_lists_arity_wanted univ arity _.
   apply ge0_arity.
-admit.
-
-(* 
 smt(allP mapP good).
-  *)
-
 qed.
 
 lemma inpss_invar_filter (inpss : inp list list, g : inp list -> bool, k: inp) :
@@ -443,7 +438,7 @@ module G(Alg : ALG, Adv : ADV) = {
     var queries : int fset;  (* valid queries made by algorithm *)
 
     var i : int;
-	var inp : inp;
+    var inp : inp;
     var k : inp;
 
     k <@ Adv.init();
