@@ -146,32 +146,11 @@ by rewrite flatten_cons all_cat IH.
 qed.
 
 
-print sort.
-op xs = [1; 5; 3; 2].
-op compare (x : int, y : int) : bool = x <= y.
-
-op x = 2.
-op y = 3.
-lemma com_ex: (compare x y) = true.
-proof.
-smt().
-qed.
-
-op e: int -> int -> bool = compare.
-print sort.
-lemma sort_ex: sort e xs = [1; 2; 3; 5].
-proof.
-smt().
-qed.
-
-print map.
-
-
 op next (xs : int list, yss : int list list) : int list list =
   flatten
   (map
    (fun x =>
-      map (fun ys => x :: (sort e ys)) yss)
+      map (fun ys => x :: ys) yss)
    xs).
 
 lemma next (xs : int list, yss : int list list) :
@@ -179,7 +158,7 @@ lemma next (xs : int list, yss : int list list) :
   flatten
   (map
    (fun x =>
-      map (fun ys => x ::(sort e ys)) yss)
+      map (fun ys => x :: ys) yss)
    xs).
  proof.
  
@@ -200,9 +179,7 @@ lemma all_listsS (xs : int list, n : int) :
   all_lists xs (n + 1) = next xs (all_lists xs n).
 proof.
 move => ge0_n.
-rewrite /all_lists foldS.
-  trivial.
-  trivial.
+by rewrite /all_lists foldS.
 qed.
 
 lemma all_listsS_iff (xs ys : int list, n : int) :
@@ -215,14 +192,10 @@ move => ge0_n.
 rewrite all_listsS // next /= -flatten_mapP.
 split => [[z] [#] /= |].
 rewrite mapP => z_in_xs [zs] [#] => zs_in_all_n ->>.
-  admit.
-(*
 by exists z zs.
 move => [z zs] [#] -> z_in_xs zs_in_all_n.
 exists z.
 by rewrite z_in_xs /= (map_f ((::) z)).
-  *)
-  admit.
 qed.
 
 lemma all_lists_arity_wanted (xs : int list, n : int) :
@@ -232,19 +205,14 @@ lemma all_lists_arity_wanted (xs : int list, n : int) :
   (all_lists xs n).
 proof.
 elim n => [| i ge0_i IH].
-  admit.
-  admit.
-
-(*
-  by rewrite all_lists0.
+by rewrite all_lists0.
 rewrite allP in IH.
 rewrite allP => zs.
 rewrite all_listsS_iff //.
 move => [w ws] [#] -> w_in_xs ws_in_all_i /=.
-  rewrite w_in_xs /=. 
+rewrite w_in_xs /=. 
 have /= [#] <- -> /= := (IH ws ws_in_all_i).
 by rewrite addzC.
-*)
 qed.
 
 lemma all_lists_arity_have (xs ys : int list, n : int) :
@@ -257,11 +225,7 @@ by rewrite all_lists0.
 rewrite /= => <- [#] y_in_xs all_mem_xs_ys.
 rewrite addzC all_listsS_iff 1:size_ge0.
 exists y ys => /=.
-  admit.
-
-(*
 by rewrite y_in_xs /= IH 1:size_ge0.
-*)
 qed.
 
 lemma size_nseq_norm (n : int, x : int) :
@@ -333,7 +297,8 @@ theory LB.
 
 (* theory parameters *)
 
-type inp = int.  (* type of inputs *)
+type inp = int.  (* type of inputs *) 
+(* set to int for the sake of experimenting "good" and "bad" axioms, need to change back later *)
 
 op univ : inp list.  (* universe with concrete ordering *)
 
@@ -350,13 +315,7 @@ op arity : {int | 0 <= arity} as ge0_arity.  (* arity of f *)
 (* list given to f should have size arity, and all elements should
    be in univ *)
 
- op f : inp -> inp list -> out option.
-
-(* op f : inp list -> out option. *)
-
-  (* when argument to f is good, we get Some of an answer *)
-
-(*
+op f : inp -> inp list -> out option.
 
 op sorted(inps : inp list) : bool =
   forall (i : int, j : int),
@@ -366,41 +325,23 @@ op not_sorted (inps: inp list) : bool =
 exists (i : int, j : int),
 ((0 <= i < arity) /\ (0 <= j < arity) /\ (i <= j) => ((nth witness inps j) < (nth witness inps i))) => true.
 
-
 op k_in_list_true (inps : inp list, k : inp) : bool =
   exists (i : int),
   (0 <= i < arity /\ nth witness inps i = k) => true.
+  
+(* when argument to f is good, we get Some of an answer - IN PROGRESS*)
 
 axiom good (xs : inp list, k : inp) : (* additional constraint is that all lists need to be sorted and the element that is being searched for should be in the list *)
   (size xs = arity /\ sorted xs /\ k_in_list_true xs k) => all (mem univ) xs =>
   exists (y : out), f xs = Some y.
 
-(* when argument to f is bad, we get None *)
+(* when argument to f is bad, we get None - IN PROGRESS *)
 
 axiom bad (xs : inp list, k : inp) : (* Check if the !all clause is needed for the axiom bad*)
   size xs <> arity \/ not_sorted xs \/ !(k_in_list_true xs k) \/ !(all (mem univ) xs) =>
   f xs = None.
-  *)
 
-
-op k_in_list_true (inps : inp list, k : inp) : bool =
-  exists (i : int),
-  (0 <= i < arity /\ nth witness inps i = k) => true.
-
-axiom good (xs : inp list, k : inp) : (* additional constraint is that all lists need to be sorted and the element that is being searched for should be in the list *)
-  (size xs = arity /\ sorted AllLists.e xs /\ k_in_list_true xs k) => all (mem univ) xs =>
-  exists (y : out), f k xs = Some y.
-
-(* when argument to f is bad, we get None *)
-
-axiom bad (xs : inp list, k : inp) : (* Check if the !all clause is needed for the axiom bad*)
-  size xs <> arity \/ !(sorted AllLists.e xs) \/ !(k_in_list_true xs k) \/ !(all (mem univ) xs) =>
-f k xs = None.
-
-
-
-
-  (* end of theory parameters *)
+(* end of theory parameters *)
 
 (* all possible lists of inputs of length arity, i.e., all
    possible good inputs to f *)
@@ -409,8 +350,6 @@ op init_inpss : inp list list = AllLists.all_lists univ arity.
 
 (* all lists of possible inputs must cause f to return non-None
    answers *)
-
-print map.
 
 op inpss_invar (inpss : inp list list, k : inp) : bool =
   all is_some (map (f k) inpss).
@@ -473,7 +412,7 @@ op inpss_done (inpss : inp list list, k : inp) : bool =
 
 module type ALG = {
   (* tell algorithm to initialize itself *)
-  proc init(k : int) : unit
+  proc init(k : inp) : unit
 
   (* ask algorithm to make an input query, choosing an input index i
      such that 0 <= i < arity *)
@@ -487,7 +426,7 @@ module type ALG = {
 
 module type ADV = {
   (* tell adversary to initialize itself *)
-  proc init() : inp
+  proc * init() : inp
 
   (* ask adversary to answer query of what the ith input is *)
   proc ans_query(i : int) : inp
@@ -504,7 +443,7 @@ module G(Alg : ALG, Adv : ADV) = {
     var queries : int fset;  (* valid queries made by algorithm *)
 
     var i : int;
-  var inp : inp;
+	var inp : inp;
     var k : inp;
 
     k <@ Adv.init();
@@ -638,7 +577,7 @@ qed.
 
 end LB.
 
-(* application to search function - changes to be made ... :( *)
+(* application to search function - changes to be made *)
 
 type inp = int.
 
@@ -652,32 +591,34 @@ op arity : {int | 0 <= arity} as ge0_arity.
 
 (* these two operators assume argument has size arity *)
 
-op all_false (inps : int list, k: inp) =
-  forall (i : int),
-  0 <= i < arity => nth witness inps i <> k.
-
-op k_true (inps : int list, k: inp)=
-  exists (i : int),
-  0<= i < arity /\ nth witness inps i = k => forall (j: int), 0<=j<i => nth witness inps j <> k.
-
-
-(* What is the correct op for k_false???????????????????? *)
-op k_false (inps : int list, k: inp)=
-  forall (i : int),
-  0<= i < arity /\ nth witness inps i = k => exists (j: int), 0<=j<i => nth witness inps j = k.
-
-
 (*
 op some_true (inps : bool list) =
   exists (i : int),
   0 <= i < arity /\ nth witness inps i = true.
-  *)
+*)
+
+(*
+op all_false (inps : int list, k: inp) =
+  forall (i : int),
+  0 <= i < arity => nth witness inps i <> k.
+*)
+
+(* IN PROGRESS - this op returns true if i (where xs[i] = k) is the smallest index in case we have multiple k's *)
+op k_smallest_index (inps : int list, k: inp)=
+  exists (i : int),
+  0 <= i < arity /\ nth witness inps i = k => forall (j: int), 0 <= j < i => nth witness inps j <> k.
 
 
-lemma some_true_equiv (inps : int list, k: inp) :
-  k_true inps k <=> ! (k_false inps k).
+(* IN PROGRESS - this op returns true if i (where xs[i] = k) is not the smallest index *)
+op k_not_smallest_index (inps : int list, k: inp)=
+  forall (i : int),
+  0 <= i < arity /\ nth witness inps i = k => exists (j: int), 0 <= j < i => nth witness inps j = k.
+
+(* code has gone through the next lemma yet *)
+lemma k_smallest_index_equiv (inps : int list, k: inp) : (*IN PROGRESS*)
+  k_smallest_index inps k <=> ! (k_not_smallest_index inps k).
 proof.
-  rewrite /k_true /k_false negb_forall /=.
+  rewrite /k_smallest_index /k_not_smallest_index negb_forall /=.
   split.
   search [!]. 
 
