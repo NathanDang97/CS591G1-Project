@@ -136,8 +136,7 @@ end FRange.
 
 theory AllLists.
 
-
-lemma all_flatten (f : int -> bool, xss : int list list) :
+lemma all_flatten (f : 'a -> bool, xss : 'a list list) :
   all f (flatten xss) = all (all f) xss.
 proof.
 elim xss => [| x xss IH /=].
@@ -145,36 +144,33 @@ by rewrite flatten_nil.
 by rewrite flatten_cons all_cat IH.
 qed.
 
-
-op next (xs : int list, yss : int list list) : int list list =
-  flatten
+op next (xs : 'a list, yss : 'a list list) : 'a list list =
+  flatten  
   (map
    (fun x =>
       map (fun ys => x :: ys) yss)
    xs).
 
-lemma next (xs : int list, yss : int list list) :
-  next xs yss =
-  flatten
+lemma next (xs : 'a list, yss : 'a list list) :
+  next xs yss = 
+  flatten  
   (map
    (fun x =>
       map (fun ys => x :: ys) yss)
    xs).
- proof.
- 
+proof.
 by rewrite /next.
 qed.
 
+op all_lists (xs : 'a list, n : int) = fold (next xs) [[]] n.
 
-op all_lists (xs : int list, n : int) = fold (next xs) [[]] n.
-
-lemma all_lists0 (xs : int list) :
+lemma all_lists0 (xs : 'a list) :
   all_lists xs 0 = [[]].
 proof.
 by rewrite /all_lists fold0.
 qed.
 
-lemma all_listsS (xs : int list, n : int) :
+lemma all_listsS (xs : 'a list, n : int) :
   0 <= n =>
   all_lists xs (n + 1) = next xs (all_lists xs n).
 proof.
@@ -182,10 +178,10 @@ move => ge0_n.
 by rewrite /all_lists foldS.
 qed.
 
-lemma all_listsS_iff (xs ys : int list, n : int) :
+lemma all_listsS_iff (xs ys : 'a list, n : int) :
   0 <= n =>
   ys \in all_lists xs (n + 1) <=>
-  exists (z : int, zs : int list),
+  exists (z : 'a, zs : 'a list),
   ys = z :: zs /\ z \in xs /\ zs \in all_lists xs n.
 proof.
 move => ge0_n.
@@ -198,7 +194,7 @@ exists z.
 by rewrite z_in_xs /= (map_f ((::) z)).
 qed.
 
-lemma all_lists_arity_wanted (xs : int list, n : int) :
+lemma all_lists_arity_wanted (xs : 'a list, n : int) :
   0 <= n =>
   all
   (fun ys => size ys = n /\ all (mem xs) ys)
@@ -210,14 +206,14 @@ rewrite allP in IH.
 rewrite allP => zs.
 rewrite all_listsS_iff //.
 move => [w ws] [#] -> w_in_xs ws_in_all_i /=.
-rewrite w_in_xs /=. 
+rewrite w_in_xs /=.
 have /= [#] <- -> /= := (IH ws ws_in_all_i).
 by rewrite addzC.
 qed.
 
-lemma all_lists_arity_have (xs ys : int list, n : int) :
+lemma all_lists_arity_have (xs ys : 'a list, n : int) :
   0 <= n => size ys = n => (all (mem xs) ys) =>
-  ys \in all_lists xs n.
+  ys \in all_lists xs n.  
 proof.
 move : n.
 elim ys => [n ge0_n /= <- | y ys IH n ge0_n].
@@ -228,7 +224,7 @@ exists y ys => /=.
 by rewrite y_in_xs /= IH 1:size_ge0.
 qed.
 
-lemma size_nseq_norm (n : int, x : int) :
+lemma size_nseq_norm (n : int, x : 'a) :
   0 <= n => size (nseq n x) = n.
 proof.
 rewrite lez_eqVlt => ge0_n.
@@ -236,7 +232,7 @@ rewrite size_nseq /max.
 by elim ge0_n => ->.
 qed.
 
-lemma all_lists_nseq (x : int, xs : int list, n : int) :
+lemma all_lists_nseq (x : 'a, xs : 'a list, n : int) :
   0 <= n => x \in xs => nseq n x \in all_lists xs n.
 proof.
 move => ge0_n x_in_xs.
@@ -249,19 +245,19 @@ qed.
    x1 or x2; when the elements index i is in zs, x1 is used;
    otherwise x2 is used *)
 
-op all_lists_make (x1 x2 : int, f : int -> bool, n : int) =
+op all_lists_make (x1 x2 : 'a, f : int -> bool, n : int) =
   mkseq (fun i => if f i then x1 else x2) n.
 
-lemma all_lists_make_size (x1 x2 : int, f : int -> bool, n : int) :
+lemma all_lists_make_size (x1 x2 : 'a, f : int -> bool, n : int) :
   0 <= n => size (all_lists_make x1 x2 f n) = n.
-proof.
+proof.  
 rewrite lez_eqVlt => ge0_n.
 rewrite /all_lists_make size_mkseq /max.
 by elim ge0_n => ->.
 qed.
 
 lemma all_lists_make_all_in
-      (xs : int list, x1 x2 : int, f : int -> bool, n : int) :
+      (xs : 'a list, x1 x2 : 'a, f : int -> bool, n : int) :
   0 <= n => x1 \in xs => x2 \in xs =>
   all (mem xs) (all_lists_make x1 x2 f n).
 proof.
@@ -271,8 +267,8 @@ rewrite mkseqP => [] [i] [#] ge0_i i_rng -> /=.
 by case (f i).
 qed.
 
-lemma all_lists_make_have (xs : int list, x1 x2 : int, f : int -> bool, n : int) :
-  0 <= n => x1 \in  xs => x2 \in xs =>
+lemma all_lists_make_have (xs : 'a list, x1 x2 : 'a, f : int -> bool, n : int) :
+  0 <= n => x1 \in xs => x2 \in xs =>
   (all_lists_make x1 x2 f n) \in all_lists xs n.
 proof.
 move => ge0_n x1_in_xs x2_in_xs.
@@ -280,7 +276,7 @@ by rewrite all_lists_arity_have // 1:all_lists_make_size //
            all_lists_make_all_in.
 qed.
 
-lemma all_lists_make_nth (x1 x2 : int, f : int -> bool, n, i : int) :
+lemma all_lists_make_nth (x1 x2 : 'a, f : int -> bool, n, i : int) :
   0 <= n => 0 <= i < n =>
   nth witness (all_lists_make x1 x2 f n) i = if f i then x1 else x2.
 proof.
@@ -291,14 +287,13 @@ qed.
 
 end AllLists.
 
-(* lower bounds theory *)
+(* lower bound theory *)
 
 theory LB.
 
 (* theory parameters *)
 
-type inp = int.  (* type of inputs *) 
-(* set to int for the sake of experimenting "good" and "bad" axioms, need to change back later *)
+type inp.  (* type of inputs *) 
 
 op univ : inp list.  (* universe with concrete ordering *)
 
@@ -312,36 +307,26 @@ type out.  (* type of outputs *)
 
 op arity : {int | 0 <= arity} as ge0_arity.  (* arity of f *)
 
-(* list given to f should have size arity, and all elements should
-   be in univ *)
+type aux.  (* axilliary info needed to compute function *)
 
-op f : inp -> inp list -> out option.
+op good : aux -> inp list -> bool.
 
-op sorted(inps : inp list) : bool =
-  forall (i : int, j : int),
-((0 <= i < arity) /\ (0 <= j < arity) /\ (i <= j) => ((nth witness inps i) <= (nth witness inps j))) => true.
+(* if size xs = arity, all (mem univ xs) and good aux xs, then
+   f aux xs should return Some of somethign; otherwise it should
+   return None *)
 
-op not_sorted (inps: inp list) : bool =
-exists (i : int, j : int),
-((0 <= i < arity) /\ (0 <= j < arity) /\ (i <= j) => ((nth witness inps j) < (nth witness inps i))) => true.
+op f : aux -> inp list -> out option.
 
-op k_in_list_true (inps : inp list, k : inp) : bool =
-  exists (i : int),
-  (0 <= i < arity /\ nth witness inps i = k) => true.
-  
-(* when argument to f is good, we get Some of an answer - IN PROGRESS*)
+axiom good (aux : aux, xs : inp list) :
+  size xs = arity => all (mem univ) xs => good aux xs =>
+  exists (y : out), f aux xs = Some y.
 
-axiom good (xs : inp list, k : inp) : (* additional constraint is that all lists need to be sorted and the element that is being searched for must be in the list *)
-  (size xs = arity /\ sorted xs /\ k_in_list_true xs k) => all (mem univ) xs =>
-  exists (y : out), f k xs = Some y.
+axiom bad (aux : aux, xs : inp list) :
+  size xs <> arity \/ ! (all (mem univ) xs) \/ ! good aux xs =>
+  f aux xs = None.
 
-(* when argument to f is bad, we get None - IN PROGRESS *)
+(* end theory parameters *)
 
-axiom bad (xs : inp list, k : inp) : (* Check if the !all clause is needed for the axiom bad*)
-  size xs <> arity \/ not_sorted xs \/ !(k_in_list_true xs k) \/ !(all (mem univ) xs) =>
-  f k xs = None.
-
-(* end of theory parameters *)
 
 (* all possible lists of inputs of length arity, i.e., all
    possible good inputs to f *)
