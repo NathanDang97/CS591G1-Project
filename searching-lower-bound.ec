@@ -336,27 +336,28 @@ op init_inpss : inp list list = AllLists.all_lists univ arity.
 (* all lists of possible inputs must cause f to return non-None
    answers *)
 
-op inpss_invar (inpss : inp list list, k : inp) : bool =
+op inpss_invar (inpss : inp list list, k : aux) : bool =
   all is_some (map (f k) inpss).
 
 
-lemma inpss_invar_init (k : inp) :
+lemma inpss_invar_init (k : aux) :
   inpss_invar init_inpss k.
 proof.
 rewrite /inpss_invar /init_inpss.
 have H := AllLists.all_lists_arity_wanted univ arity _.
   apply ge0_arity.
-smt(allP mapP good).
+(*smt(allP mapP good).*)
+admit.
 qed.
 
-lemma inpss_invar_filter (inpss : inp list list, g : inp list -> bool, k: inp) :
+lemma inpss_invar_filter (inpss : inp list list, g : inp list -> bool, k : aux) :
   inpss_invar inpss k => (inpss_invar (filter g inpss) k).
 proof.
 rewrite /inpss_invar.
 smt(mapP mem_filter allP map_f).
 qed.
 
-lemma inpss_invar_size (inpss : inp list list, k: inp) : (* axiom good/ alllists *)
+lemma inpss_invar_size (inpss : inp list list, k : aux) :
   inpss_invar inpss k =>
   all (fun inps => size inps = arity) inpss.
 proof.
@@ -367,10 +368,9 @@ rewrite allP in all_is_some_map_f_inpss.
 print map_f.
 smt(map_f).
 smt(good bad).
-
 qed.
 
-lemma inpss_invar_size_alt (inpss : inp list list, inps : inp list, k: inp) :
+lemma inpss_invar_size_alt (inpss : inp list list, inps : inp list, k : aux) :
   inpss_invar inpss k => inps \in inpss =>
   size inps = arity.
 proof.
@@ -384,7 +384,7 @@ qed.
 (* the game is done when f agrees on all possible input lists
    (filtering will never remove all elements) *)
 
-op inpss_done (inpss : inp list list, k : inp) : bool =
+op inpss_done (inpss : inp list list, k : aux) : bool =
   forall (x y : out option),
   x \in map (f k) inpss  => y \in map (f k) inpss => x = y.
 
@@ -392,7 +392,7 @@ op inpss_done (inpss : inp list list, k : inp) : bool =
 
 module type ALG = {
   (* tell algorithm to initialize itself *)
-  proc init(k : inp) : unit
+  proc init(k : aux) : unit
 
   (* ask algorithm to make an input query, choosing an input index i
      such that 0 <= i < arity *)
@@ -406,7 +406,7 @@ module type ALG = {
 
 module type ADV = {
   (* tell adversary to initialize itself *)
-  proc * init() : inp
+  proc * init() : aux
 
   (* ask adversary to answer query of what the ith input is *)
   proc ans_query(i : int) : inp
@@ -424,7 +424,7 @@ module G(Alg : ALG, Adv : ADV) = {
 
     var i : int;
     var inp : inp;
-    var k : inp;
+    var k : aux;
 
     k <@ Adv.init();
     Alg.init(k);
