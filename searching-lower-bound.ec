@@ -312,10 +312,10 @@ type aux.  (* axilliary info needed to compute function *)
 op good : aux -> inp list -> bool.
 
 (* if size xs = arity, all (mem univ xs) and good aux xs, then
-   f aux xs should return Some of somethign; otherwise it should
+   f aux xs should return Some of something; otherwise it should
    return None *)
 
-op f : aux -> inp list -> out option.
+op f : aux -> inp list  -> out option.
 
 axiom good (aux : aux, xs : inp list) :
   size xs = arity => all (mem univ) xs => good aux xs =>
@@ -331,23 +331,25 @@ axiom bad (aux : aux, xs : inp list) :
 (* all possible lists of inputs of length arity, i.e., all
    possible good inputs to f *)
 
-op init_inpss : inp list list = AllLists.all_lists univ arity.
+print filter.
+print mem.
+(* probably need to fix here*)
+op init_inpss (k : aux) : inp list list = filter (good k) (AllLists.all_lists univ arity).
 
 (* all lists of possible inputs must cause f to return non-None
    answers *)
 
 op inpss_invar (inpss : inp list list, k : aux) : bool =
-  all is_some (map (f k) inpss).
+   all is_some (map (f k) inpss).
 
-
-lemma inpss_invar_init (k : aux) :
-  inpss_invar init_inpss k.
+lemma inpss_invar_init (k : aux):
+  inpss_invar (init_inpss k) k.
 proof.
 rewrite /inpss_invar /init_inpss.
 have H := AllLists.all_lists_arity_wanted univ arity _.
-  apply ge0_arity.
-(*smt(allP mapP good).*)
-admit.
+apply ge0_arity.
+smt(mem_filter allP mapP good).
+
 qed.
 
 lemma inpss_invar_filter (inpss : inp list list, g : inp list -> bool, k : aux) :
@@ -428,7 +430,7 @@ module G(Alg : ALG, Adv : ADV) = {
 
     k <@ Adv.init();
     Alg.init(k);
-    inpss <- init_inpss;  (* start with all lists of inputs *)
+    inpss <- init_inpss k;  (* start with all lists of inputs *)
     (* by lemma inpss_invar_init, the invariant is established *)
     error <- false;  (* no error so far *)
     don <- inpss_done inpss k;  (* are we already done? *)
@@ -560,6 +562,7 @@ end LB.
 (* application to search function - changes to be made *)
 
 type inp = int.
+type aux = int.
 
 op univ = [0; 1; 2].
 
@@ -583,32 +586,42 @@ op all_false (inps : int list, k: inp) =
   0 <= i < arity => nth witness inps i <> k.
 *)
 
-(* IN PROGRESS - this op returns true if i (where xs[i] = k) is the smallest index in case we have multiple k's *)
+
 op k_smallest_index (inps : int list, k: inp)=
-  exists (i : int),
-  0 <= i < arity /\ nth witness inps i = k => forall (j: int), 0 <= j < i => nth witness inps j <> k.
+  mem inps k.
 
 
-(* IN PROGRESS - this op returns true if i (where xs[i] = k) is not the smallest index *)
+(*
 op k_not_smallest_index (inps : int list, k: inp)=
   forall (i : int),
   0 <= i < arity /\ nth witness inps i = k => exists (j: int), 0 <= j < i => nth witness inps j = k.
+*)
 
-(* code has gone through the next lemma yet *)
-lemma k_smallest_index_equiv (inps : int list, k: inp) : (*IN PROGRESS*)
-  k_smallest_index inps k <=> ! (k_not_smallest_index inps k).
+(*
+op some_k (inps : int list, k : inp) =
+  exists (i : int),
+  0 <= i < arity /\ nth witness inps i = k.
+
+op no_k (inps : int list, k : inp) = 
+  forall (i : int),
+  0 <= i < arity => nth witness inps i <> k.
+*)
+
+(*
+lemma some_k_equiv (inps : int list, k: inp) :
+  some_k inps k <=> ! (no_k inps k).
 proof.
-  rewrite /k_smallest_index /k_not_smallest_index negb_forall /=.
-  split.
-  search [!]. 
-
+rewrite /some_k /no_k negb_forall /=.
+smt().
 split => [[] i [] i_rng nth_i_true | [] i].
 exists i.
 by rewrite negb_imply neqF /= i_rng nth_i_true.
 rewrite negb_imply neqF /= => [[]] x_rng nth_i.
 exists i; by rewrite x_rng nth_i.
 qed.
+*)
 
+(*
 lemma all_false_equiv (inps : bool list) :
   all_false inps <=> ! (some_true inps).
 proof.
@@ -627,14 +640,27 @@ proof.
 rewrite /all_false => i i_rng.
 by rewrite nth_nseq.
 qed.
+*)
 
 (* generalized or function *)
 
-op f (xs : inp list) =
-  if size xs <> arity
-  then None
-  else Some(some_true xs).
+op compare (x : int, y : int) : bool = x <= y.
 
+op good (k : aux, xs : inp list) : bool = 
+   all (mem univ) xs /\ sorted compare xs /\ mem xs k /\ size xs = arity.
+
+op min_index (k: aux, xs: inp list, i:int) =
+nth witness xs i = k /\ 0 <= i < arity => forall(j : int), 0<= j <i => nth witness xs j <> k.
+
+print choiceb.
+
+
+op f (k : inp, xs : inp list) : int option=
+  if (good k xs)
+  then Some (choiceb (min_index k xs) 0)
+  else None.
+
+(*
 lemma f_false (xs : inp list) :
   size xs = arity => all_false xs => f xs = Some false.
 proof.
@@ -661,14 +687,17 @@ elim xs => [// | x ys IH].
 rewrite /univ /=.
 by case x.
 qed.
+*)
 
 clone import LB as LB' with
-  type inp <- inp,
+type inp <- inp,
+type aux <- inp,
+type out <- int,
   op univ  <- univ,
-  op def   <- true,
-  type out <- out,
+  op def   <- 1,
   op arity <- arity,
-  op f     <- f
+  op f     <- f,
+  op good  <- good
 proof *.
 realize ge0_arity. rewrite ge0_arity. qed.
 
@@ -677,34 +706,43 @@ realize univ_uniq. by rewrite /univ. qed.
 realize univ_def. by rewrite /univ. qed.
 
 realize good.
-rewrite /f => xs -> _.
-by exists (some_true xs).
+smt().
 qed.
-
+ 
 realize bad.
-rewrite /f.
-move => xs [-> // |].
-by have := all_mem_univ xs.
+    rewrite /f.
+    progress.
+    rewrite /good.
+smt().
 qed.
 
+(*
 lemma nseq_false_in_init_inpss :
   nseq arity false \in init_inpss.
 proof.
 by rewrite /init_inpss AllLists.all_lists_nseq 1:ge0_arity.
 qed.
+    *)
 
 (* here is our adversary *)
 
 module Adv : ADV = {
-  proc init() : unit = { }
+
+  proc init() : inp = {return 1;}
 
   proc ans_query(i : int) : inp = {
-    return false;
+   var ans : inp;
+
+   if (i <= arity - i - 1) {ans <- 0;}
+   else {ans <- 2;}
+
+   return ans;
   }
 }.
 
+
 lemma Adv_ans_query_false :
-  hoare[Adv.ans_query : true ==> !res].
+  hoare[Adv.ans_query : true ==> res=0 \/ res=2 ].
 proof.
 proc; auto.
 qed.
@@ -719,25 +757,38 @@ proof.
 proc; auto.
 qed.
 
+print elems.
+
 pred all_queries_false (queries : int fset, inps : inp list) =
-  all (fun i => nth witness inps i = false) (elems queries).
+all (fun i => nth witness inps i = 0 \/ nth witness inps i =2) (elems queries).
+
 
 lemma all_queries_falseP (queries : int fset, inps : inp list) :
   queries_in_range queries =>
   all_queries_false queries inps <=>
   forall (i : int),
   0 <= i < arity => i \in queries =>
-  ! nth witness inps i.
+   nth witness inps i = 0 \/ nth witness inps i = 2.
 proof.
 move => qir_queries.
 rewrite /all_queries_false allP.
 split => [H i i_rng i_in_queries | H x].
+smt().
+smt().
+qed.
+
+(*
+
 have /= -> // := H i _.
 by rewrite -memE.
 rewrite -memE /= => x_in_queries.
 by rewrite neqF H 1:qir_queries.
 qed.
 
+*)
+
+
+(*
 lemma all_queries_false_queries_eq_all_range (queries : int fset) :
   queries_eq_all_range queries =>
   all_queries_false queries = all_false.
@@ -748,7 +799,9 @@ rewrite eq_iff.
 rewrite /all_queries_false all_queries_predP //.
 by split => [| ?].
 qed.
+*)
 
+(*
 lemma all_queries_false_nseq (queries : int fset) :
   queries_in_range queries =>
   all_queries_false queries (nseq arity false).
@@ -757,7 +810,9 @@ move => qir_queries.
 rewrite /all_queries_false all_elemsP => x x_in_queries /=.
 by rewrite nth_nseq 1:qir_queries.
 qed.
+    *)
 
+(*
 lemma filter_all_queries_false0 :
   filter (all_queries_false fset0) init_inpss = init_inpss.
 proof.
@@ -770,19 +825,23 @@ have -> :
   by rewrite elems_fset0.
 by rewrite filter_predT.
 qed.
+    *)
 
-lemma filter_all_queries_false_add (queries : int fset, i : int) :
-  filter (all_queries_false (queries `|` fset1 i)) init_inpss =
+lemma filter_all_queries_false_add (queries : int fset, i : int, k: aux) :
+  filter (all_queries_false (queries `|` fset1 i)) (init_inpss k) =
   filter
-  (fun inps => nth witness inps i = false)
-  (filter (all_queries_false queries) init_inpss).
+  (fun inps => nth witness inps i = 0 \/  nth witness inps i = 2 )
+  (filter (all_queries_false queries) (init_inpss k)).
 proof.
 rewrite -filter_predI /predI.
 congr.
 apply fun_ext => bs.
-by rewrite /all_queries_false all_elems_or elems_fset1 andbC.
+  admit.
+admit.
+(*  by rewrite /all_queries_false all_elems_or elems_fset1 andbC. *)
 qed.
 
+(*
 lemma filter_all_queries_false_f_false (queries : int fset) :
   queries_in_range queries =>
   exists (xs : inp list),
@@ -828,15 +887,22 @@ rewrite AllLists.all_lists_make_nth 1:ge0_arity 1:qir_queries //
 rewrite /init_inpss AllLists.all_lists_make_have 1:ge0_arity //.
 by rewrite (f_true_all_lists_make _ i).
 qed.
+    *)
 
-lemma filter_all_queries_false_done (queries : int fset) :
+print filter.
+
+lemma filter_all_queries_false_done (queries : int fset, k : aux) :
   queries_in_range queries =>
-  (card queries = arity <=>
-   inpss_done (filter (all_queries_false queries) init_inpss)).
+  (2 ^ card queries = arity <=>
+   inpss_done (filter (all_queries_false queries) (init_inpss k)) k).
 proof.
 move => qir_queries.
 split => [cq_eq_arities | done_filtering].
-rewrite all_queries_false_queries_eq_all_range.
+  admit.
+admit.
+
+(*
+  rewrite all_queries_false_queries_eq_all_range.
 rewrite all_queries_cond // in cq_eq_arities.
 rewrite /inpss_done => out1 out2.
 rewrite 2!mapP.
@@ -867,26 +933,28 @@ have [] ys [#] ys_in_fil f_ys_true :
 have : f xs = f ys.
   apply done_filtering; by rewrite map_f.
 by rewrite f_xs_false f_ys_true.
+
+*)
 qed.
 
 lemma G_Adv_main (Alg <: ALG{Adv}) :
-  hoare [G(Alg, Adv).main : true ==> res.`1 \/ res.`2 = arity].
+  hoare [G(Alg, Adv).main : true ==> res.`1 \/ 2^(res.`2) = arity].
 proof.
 proc.
 seq 7 :
-  (inpss = init_inpss /\ error = false /\ don = inpss_done inpss /\
+  (inpss = init_inpss k /\ error = false /\ don = inpss_done inpss k /\
    stage = 0 /\ queries = fset0).
 wp.
 call (_ : true); first auto.
-call (_ : true); first auto.
+(* call (_ : true); first auto. *)
 while
   (stage = card queries /\ queries_in_range queries /\
-   inpss = filter (all_queries_false queries) init_inpss /\
-   don = inpss_done inpss).
+   inpss = filter (all_queries_false queries) (init_inpss k) /\
+   don = inpss_done inpss k).
 seq 1 :
   (stage = card queries /\ queries_in_range queries /\
-   inpss = filter (all_queries_false queries) init_inpss /\
-   don = inpss_done inpss /\ !don /\ !error).
+   inpss = filter (all_queries_false queries)( init_inpss k) /\
+   don = inpss_done inpss k /\ !don /\ !error).
 call (_ : true); first auto.
 if.
 wp.
@@ -894,13 +962,16 @@ call (_ : true); first auto.
 call Adv_ans_query_false.
 auto; progress.
 by rewrite fcardUindep1.
-smt(queries_in_range_add).
-by rewrite filter_all_queries_false_add H5.
+    smt(queries_in_range_add).
+  admit.
+(* by rewrite filter_all_queries_false_add H5.*)
 auto.
 auto; progress.
 by rewrite fcards0.
 by rewrite queries_in_range0.
-by rewrite filter_all_queries_false0.
+    (*    by rewrite filter_all_queries_false0. *)
+  admit.
+  
 smt(filter_all_queries_false_done).
 qed.
 
@@ -910,7 +981,7 @@ lemma lower_bound_or &m :
   forall (Alg <: ALG{Adv}),
   islossless Alg.init => islossless Alg.make_query =>
   islossless Alg.query_result =>
-  Pr[G(Alg, Adv).main() @ &m : res.`1 \/ res.`2 = arity] = 1%r.
+  Pr[G(Alg, Adv).main() @ &m : res.`1 \/ 2^res.`2 = arity] = 1%r.
 proof.
 exists Adv.
 split; first apply Adv_init_ll.
@@ -919,7 +990,7 @@ move => Alg Alg_init_ll Alg_make_query_ll Alg_query_result_ll.
 byphoare => //.
 conseq
   (_ : true ==> true)
-  (_ : true ==> res.`1 \/ res.`2 = arity) => //.
+  (_ : true ==> res.`1 \/ 2^res.`2 = arity) => //.
 apply (G_Adv_main Alg).
 rewrite (G_ll Alg Adv) 1:Alg_init_ll 1:Alg_make_query_ll
         1:Alg_query_result_ll 1:Adv_init_ll Adv_ans_query_ll.
