@@ -728,14 +728,33 @@ qed.
 
 module Adv : ADV = {
 
-  proc init() : inp = {return 1;}
+  var max_0 : int
+  var min_2 : int
+  
+  proc init() : inp = {max_0 <- -1; min_2 <- -2; return 1;}
 
   proc ans_query(i : int) : inp = {
-   var ans : inp;
+  var ans : inp;
 
+  ans <- -1;
+  if ((max_0 = -1 \/ min_2 = -2)/\ i < arity - i){max_0 <- i; ans <- 0;}
+  elif ((max_0 = -1 \/ min_2 = -2)/\ arity - i < i){min_2 <- i; ans <- 2;}
+  elif (max_0 <> -1 /\ i<= max_0){ans <- 0;}
+  elif (min_2 <> -2 /\ min_2 <= i){ans <- 2;}
+  elif (max_0 <> -1 /\ min_2 <> -2 /\ i-max_0 < min_2-i){max_0 <-i; ans <- 0;}
+  else {min_2 <-i; ans <- 2;}
+
+
+(*  elif (i < min_2 /\ min_2-i < i-max_0){min_2 <-i; ans <- 2;}*)
+
+ (*   
+  else {min_2 <- i; ans <- 2;}
+*)
+  (*  
    if (i <= arity - i - 1) {ans <- 0;}
    else {ans <- 2;}
-
+  *)
+    
    return ans;
   }
 }.
@@ -744,7 +763,7 @@ module Adv : ADV = {
 lemma Adv_ans_query_false :
   hoare[Adv.ans_query : true ==> res=0 \/ res=2 ].
 proof.
-proc; auto.
+  proc; auto.
 qed.
 
 lemma Adv_init_ll : islossless Adv.init.
@@ -759,23 +778,65 @@ qed.
 
 print elems.
 
+(*
 pred all_queries_false (queries : int fset, inps : inp list) =
 all (fun i => nth witness inps i = 0 \/ nth witness inps i =2) (elems queries).
+  *)
 
+op max_0 (queries : int fset, inps : int list) : int =
+nth (-2) (filter(fun i => nth witness inps i = 0 /\ all (fun j => i < j => nth witness inps j <> 0)(elems queries))(elems queries)) 0.
+
+op min_2 (queries : int fset, inps : int list) : int =
+nth (-2) (filter(fun i => nth witness inps i = 2 /\ all (fun j => j < i => nth witness inps j <> 2)(elems queries))(elems queries)) 0.
+
+(*
+Code for checking max_0 and min_2
+
+op check_array = [0;0;0;0;1;2;2;2;2].
+op check_query = [0;1;4;2;6;8].
+lemma check_max :
+    (min_2 check_query check_array) = 6.
+    proof.
+rewrite /min_2/check_query/check_array.    
+progress.
+qed.
+
+*)
+
+
+pred all_queries_not_one(queries : int fset, inps: inp list) =
+all (fun i => ((i <= max_0 queries inps => nth witness inps i = 0)) \/ (min_2 queries inps <= i => nth witness inps i = 2) \/ (max_0 queries inps < i < min_2 queries inps => nth witness inps i =0 \/ nth witness inps i = 1 \/ nth witness inps i=2)) (elems queries).
+
+(*
+pred all_queries_false(queries : int fset, inps: inp list) =
+all (fun i => (i <= max_0 queries inps => nth witness inps i = 0))(elems queries) \/ all (fun i => min_2 queries inps <= i => nth witness inps i = 2)(elems queries)  \/ all (fun i => max_0 queries inps < i < min_2 queries inps => nth witness inps i =0 \/ nth witness inps i = 1 \/ nth witness inps i=2) (elems queries).
+*)
+
+
+
+(*
 
 lemma all_queries_falseP (queries : int fset, inps : inp list) :
   queries_in_range queries =>
   all_queries_false queries inps <=>
   forall (i : int),
-  0 <= i < arity => i \in queries =>
-   nth witness inps i = 0 \/ nth witness inps i = 2.
+  0 <= i < arity => (i \in queries /\ i <= max_0 queries inps =>
+   nth witness inps i = 0) /\ (i \in queries /\ min_2 queries inps <= i => nth witness inps i = 2).
 proof.
 move => qir_queries.
 rewrite /all_queries_false allP.
+split.
+progress.
+smt().
+progress.
+smt().
 split => [H i i_rng i_in_queries | H x].
 smt().
 smt().
 qed.
+
+  *)
+
 
 (*
 
@@ -827,6 +888,7 @@ by rewrite filter_predT.
 qed.
     *)
 
+(*
 lemma filter_all_queries_false_add (queries : int fset, i : int, k: aux) :
   filter (all_queries_false (queries `|` fset1 i)) (init_inpss k) =
   filter
@@ -836,9 +898,25 @@ proof.
 rewrite -filter_predI /predI.
 congr.
 apply fun_ext => bs.
+  rewrite /all_queries_false.
+
+  rewrite /all_queries_false all_elems_or elems_fset1 andbC.
+progress.
+
+qed.
+  *)
+
+lemma filter_all_queries_not_one_add (queries : int fset, i : int, k: aux) :
+  filter (all_queries_not_one (queries `|` fset1 i)) (init_inpss k) = filter
+  (fun inps =>  i < max_0 queries inps => nth witness inps i = 0 \/  min_2 queries inps <= i =>  nth witness inps i = 2 \/ (max_0 queries inps < i < min_2 queries inps /\ i - max_0 queries inps <= min_2 queries inps - i => nth witness inps i = 0) \/ (max_0 queries inps < i < min_2 queries inps /\ min_2 queries inps -i < i - max_0 queries inps => nth witness inps i = 2))(filter (all_queries_not_one queries) (init_inpss k)).
+proof.
+rewrite -filter_predI /predI.
+congr.
+apply fun_ext => bs.
+  rewrite /all_queries_not_one.
+  progress.
   admit.
 admit.
-(*  by rewrite /all_queries_false all_elems_or elems_fset1 andbC. *)
 qed.
 
 (*
@@ -889,12 +967,10 @@ by rewrite (f_true_all_lists_make _ i).
 qed.
     *)
 
-print filter.
-
-lemma filter_all_queries_false_done (queries : int fset, k : aux) :
+lemma filter_all_queries_not_one_done (queries : int fset, k : aux) :
   queries_in_range queries =>
   (2 ^ card queries = arity <=>
-   inpss_done (filter (all_queries_false queries) (init_inpss k)) k).
+   inpss_done (filter (all_queries_not_one queries) (init_inpss k)) k).
 proof.
 move => qir_queries.
 split => [cq_eq_arities | done_filtering].
@@ -949,11 +1025,11 @@ call (_ : true); first auto.
 (* call (_ : true); first auto. *)
 while
   (stage = card queries /\ queries_in_range queries /\
-   inpss = filter (all_queries_false queries) (init_inpss k) /\
+   inpss = filter (all_queries_not_one queries) (init_inpss k) /\
    don = inpss_done inpss k).
 seq 1 :
   (stage = card queries /\ queries_in_range queries /\
-   inpss = filter (all_queries_false queries)( init_inpss k) /\
+   inpss = filter (all_queries_not_one queries)( init_inpss k) /\
    don = inpss_done inpss k /\ !don /\ !error).
 call (_ : true); first auto.
 if.
@@ -972,7 +1048,7 @@ by rewrite queries_in_range0.
     (*    by rewrite filter_all_queries_false0. *)
   admit.
   
-smt(filter_all_queries_false_done).
+smt(filter_all_queries_not_one_done).
 qed.
 
 lemma lower_bound_or &m :
