@@ -574,18 +574,6 @@ op arity : {int | 0 <= arity} as ge0_arity.
 
 (* these two operators assume argument has size arity *)
 
-(*
-op some_true (inps : bool list) =
-  exists (i : int),
-  0 <= i < arity /\ nth witness inps i = true.
-*)
-
-(*
-op all_false (inps : int list, k: inp) =
-  forall (i : int),
-  0 <= i < arity => nth witness inps i <> k.
-*)
-
 
 op k_smallest_index (inps : int list, k: inp)=
   mem inps k.
@@ -597,52 +585,8 @@ op k_not_smallest_index (inps : int list, k: inp)=
   0 <= i < arity /\ nth witness inps i = k => exists (j: int), 0 <= j < i => nth witness inps j = k.
 *)
 
-(*
-op some_k (inps : int list, k : inp) =
-  exists (i : int),
-  0 <= i < arity /\ nth witness inps i = k.
 
-op no_k (inps : int list, k : inp) = 
-  forall (i : int),
-  0 <= i < arity => nth witness inps i <> k.
-*)
-
-(*
-lemma some_k_equiv (inps : int list, k: inp) :
-  some_k inps k <=> ! (no_k inps k).
-proof.
-rewrite /some_k /no_k negb_forall /=.
-smt().
-split => [[] i [] i_rng nth_i_true | [] i].
-exists i.
-by rewrite negb_imply neqF /= i_rng nth_i_true.
-rewrite negb_imply neqF /= => [[]] x_rng nth_i.
-exists i; by rewrite x_rng nth_i.
-qed.
-*)
-
-(*
-lemma all_false_equiv (inps : bool list) :
-  all_false inps <=> ! (some_true inps).
-proof.
-rewrite /some_true /all_false negb_exists /=.
-split => [H i | H i i_rng].
-rewrite negb_and.
-case (0 <= i < arity) => [i_arity | //].
-right; by rewrite -neqF H.
-have /negb_and [] // := H i.
-by rewrite neqF eqT.
-qed.
-
-lemma all_false_nseq :
-  all_false (nseq arity false).
-proof.
-rewrite /all_false => i i_rng.
-by rewrite nth_nseq.
-qed.
-*)
-
-(* generalized or function *)
+(* Minimal index search function *)
 
 op compare (x : int, y : int) : bool = x <= y.
 
@@ -652,42 +596,12 @@ op good (k : aux, xs : inp list) : bool =
 op min_index (k: aux, xs: inp list, i:int) =
 nth witness xs i = k /\ 0 <= i < arity => forall(j : int), 0<= j <i => nth witness xs j <> k.
 
-print choiceb.
-
 
 op f (k : inp, xs : inp list) : int option=
   if (good k xs)
   then Some (choiceb (min_index k xs) 0)
   else None.
 
-(*
-lemma f_false (xs : inp list) :
-  size xs = arity => all_false xs => f xs = Some false.
-proof.
-rewrite /f => -> /=.
-by rewrite all_false_equiv neqF.
-qed.
-
-lemma f_false_nseq :
-  f (nseq arity false) = Some false.
-proof.
-rewrite f_false // 1:AllLists.size_nseq_norm 1:ge0_arity // all_false_nseq.
-qed.
-
-lemma f_true (xs : inp list) :
-  size xs = arity => some_true xs => f xs = Some true.
-proof.
-by rewrite /f => -> ->.
-qed.
-
-lemma all_mem_univ (xs : inp list) :
-  all (mem univ) xs.
-proof.
-elim xs => [// | x ys IH].
-rewrite /univ /=.
-by case x.
-qed.
-*)
 
 clone import LB as LB' with
 type inp <- inp,
@@ -716,13 +630,6 @@ realize bad.
 smt().
 qed.
 
-(*
-lemma nseq_false_in_init_inpss :
-  nseq arity false \in init_inpss.
-proof.
-by rewrite /init_inpss AllLists.all_lists_nseq 1:ge0_arity.
-qed.
-    *)
 
 (* here is our adversary *)
 
@@ -731,29 +638,18 @@ module Adv : ADV = {
   var max_0 : int
   var min_2 : int
   
-  proc init() : inp = {max_0 <- -1; min_2 <- -2; return 1;}
+  proc init() : inp = {max_0 <- -1; min_2 <- arity; return 1;}
 
   proc ans_query(i : int) : inp = {
   var ans : inp;
 
   ans <- -1;
-  if ((max_0 = -1 \/ min_2 = -2)/\ i < arity - i){max_0 <- i; ans <- 0;}
+  if ((max_0 = -1 \/ min_2 = -2)/\ i <= arity - i){max_0 <- i; ans <- 0;}
   elif ((max_0 = -1 \/ min_2 = -2)/\ arity - i < i){min_2 <- i; ans <- 2;}
   elif (max_0 <> -1 /\ i<= max_0){ans <- 0;}
   elif (min_2 <> -2 /\ min_2 <= i){ans <- 2;}
   elif (max_0 <> -1 /\ min_2 <> -2 /\ i-max_0 < min_2-i){max_0 <-i; ans <- 0;}
   else {min_2 <-i; ans <- 2;}
-
-
-(*  elif (i < min_2 /\ min_2-i < i-max_0){min_2 <-i; ans <- 2;}*)
-
- (*   
-  else {min_2 <- i; ans <- 2;}
-*)
-  (*  
-   if (i <= arity - i - 1) {ans <- 0;}
-   else {ans <- 2;}
-  *)
     
    return ans;
   }
@@ -776,12 +672,8 @@ proof.
 proc; auto.
 qed.
 
-print elems.
 
-(*
-pred all_queries_false (queries : int fset, inps : inp list) =
-all (fun i => nth witness inps i = 0 \/ nth witness inps i =2) (elems queries).
-  *)
+(* The following two operators evaluate the maximum index that points to 0 and the minimal index that points to 2. We also wrote some dummy code to check the validty of the operators *)
 
 op max_0 (queries : int fset, inps : int list) : int =
 nth (-2) (filter(fun i => nth witness inps i = 0 /\ all (fun j => i < j => nth witness inps j <> 0)(elems queries))(elems queries)) 0.
@@ -789,7 +681,9 @@ nth (-2) (filter(fun i => nth witness inps i = 0 /\ all (fun j => i < j => nth w
 op min_2 (queries : int fset, inps : int list) : int =
 nth (-2) (filter(fun i => nth witness inps i = 2 /\ all (fun j => j < i => nth witness inps j <> 2)(elems queries))(elems queries)) 0.
 
+
 (*
+
 Code for checking max_0 and min_2
 
 op check_array = [0;0;0;0;1;2;2;2;2].
@@ -804,13 +698,9 @@ qed.
 *)
 
 
+(* Depends on the correct invariant, which still to be verifed *)
 pred all_queries_not_one(queries : int fset, inps: inp list) =
 all (fun i => ((i <= max_0 queries inps => nth witness inps i = 0)) \/ (min_2 queries inps <= i => nth witness inps i = 2) \/ (max_0 queries inps < i < min_2 queries inps => nth witness inps i =0 \/ nth witness inps i = 1 \/ nth witness inps i=2)) (elems queries).
-
-(*
-pred all_queries_false(queries : int fset, inps: inp list) =
-all (fun i => (i <= max_0 queries inps => nth witness inps i = 0))(elems queries) \/ all (fun i => min_2 queries inps <= i => nth witness inps i = 2)(elems queries)  \/ all (fun i => max_0 queries inps < i < min_2 queries inps => nth witness inps i =0 \/ nth witness inps i = 1 \/ nth witness inps i=2) (elems queries).
-*)
 
 
 
@@ -836,17 +726,6 @@ smt().
 qed.
 
   *)
-
-
-(*
-
-have /= -> // := H i _.
-by rewrite -memE.
-rewrite -memE /= => x_in_queries.
-by rewrite neqF H 1:qir_queries.
-qed.
-
-*)
 
 
 (*
@@ -916,7 +795,7 @@ apply fun_ext => bs.
   rewrite /all_queries_not_one.
   progress.
   admit.
-admit.
+  admit.
 qed.
 
 (*
@@ -975,42 +854,7 @@ proof.
 move => qir_queries.
 split => [cq_eq_arities | done_filtering].
   admit.
-admit.
-
-(*
-  rewrite all_queries_false_queries_eq_all_range.
-rewrite all_queries_cond // in cq_eq_arities.
-rewrite /inpss_done => out1 out2.
-rewrite 2!mapP.
-move => [xs] [#] xs_in_filter ->.
-move => [ys] [#] ys_in_filter ->.
-rewrite mem_filter in xs_in_filter.
-rewrite mem_filter in ys_in_filter.
-elim xs_in_filter => xs_af xs_in_init.
-elim ys_in_filter => ys_af ys_in_init.
-have size_xs : size xs = arity.
-  rewrite (inpss_invar_size_alt init_inpss) 1:inpss_invar_init //.
-have size_ys : size ys = arity.
-  rewrite (inpss_invar_size_alt init_inpss) 1:inpss_invar_init //.
-by rewrite f_false // f_false.
-rewrite all_queries_cond // => i i_in_rng.
-case (i \in queries) => [// | i_notin_queries].
-rewrite /inpss_done in done_filtering.
-have [] xs [#] xs_in_fil f_xs_false :
-  exists (xs : inp list),
-  xs \in filter (all_queries_false queries) init_inpss /\
-  f xs = Some false.
-  by rewrite filter_all_queries_false_f_false.
-have [] ys [#] ys_in_fil f_ys_true :
-  exists (ys : inp list),
-  ys \in filter (all_queries_false queries) init_inpss /\
-  f ys = Some true.
-  by rewrite (filter_all_queries_false_f_true _ i).
-have : f xs = f ys.
-  apply done_filtering; by rewrite map_f.
-by rewrite f_xs_false f_ys_true.
-
-*)
+  admit.
 qed.
 
 lemma G_Adv_main (Alg <: ALG{Adv}) :
